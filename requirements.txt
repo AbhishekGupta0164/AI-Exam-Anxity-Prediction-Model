@@ -7,5 +7,6 @@ streamlit
 joblib
 requests
 matplotlib
-torch
+# CPU-only Torch (NO CUDA, works on Render free tier)
+torch --index-url https://download.pytorch.org/whl/cpu
 transformers
