@@ -69,7 +69,6 @@
 #     }
 
 
-# grok error control
 from fastapi import FastAPI
 from pydantic import BaseModel
 import torch
@@ -78,23 +77,13 @@ import os
 
 app = FastAPI(title="Exam Anxiety Detector API")
 
-# Model path (from backend/main.py → go up to project root)
+# Model path (project root / model)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 model_path = os.path.join(BASE_DIR, "model")
 
-# Globals (will be loaded in startup)
+# Will be loaded at startup
 tokenizer = None
 model = None
-
-@app.on_event("startup")
-def load_model():
-    global tokenizer, model
-    print("🚀 Loading BERT model...")  # ← you will see this in Render logs
-    
-    tokenizer = BertTokenizer.from_pretrained(model_path)
-    model = BertForSequenceClassification.from_pretrained(model_path)
-    model.eval()          # ← only here, after loading
-    print("✅ Model loaded successfully!")
 
 label_map = {
     0: "Low Anxiety",
@@ -102,15 +91,32 @@ label_map = {
     2: "High Anxiety"
 }
 
+@app.on_event("startup")
+def load_model():
+    global tokenizer, model
+    print("🚀 Loading BERT model from:", model_path)
+    
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path)
+    model.eval()
+    
+    print("✅ Model loaded successfully!")
+
 class TextInput(BaseModel):
     text: str
 
-def predict_anxiety(text: str):
+@app.get("/")
+def home():
+    return {"message": "Exam Anxiety Detector API running ✅"}
+
+@app.post("/predict")
+def predict(data: TextInput):
+    global tokenizer, model
     if tokenizer is None or model is None:
-        raise RuntimeError("Model not loaded yet")
+        return {"error": "Model is still loading, please wait..."}
     
     inputs = tokenizer(
-        text,
+        data.text,
         return_tensors="pt",
         truncation=True,
         padding=True,
@@ -121,15 +127,8 @@ def predict_anxiety(text: str):
         outputs = model(**inputs)
     
     prediction = torch.argmax(outputs.logits, dim=1).item()
-    return label_map[prediction]
-
-@app.get("/")
-def home():
-    return {"message": "Exam Anxiety Detector API running ✅"}
-
-@app.post("/predict")
-def predict(data: TextInput):
-    result = predict_anxiety(data.text)
+    result = label_map[prediction]
+    
     return {
         "input_text": data.text,
         "predicted_anxiety": result
