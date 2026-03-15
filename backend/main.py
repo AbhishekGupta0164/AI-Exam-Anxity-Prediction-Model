@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 
+
 app = FastAPI()
 
 # model_path = "../model"
@@ -11,8 +12,17 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 model_path = os.path.join(BASE_DIR, "model")
 
-tokenizer = BertTokenizer.from_pretrained(model_path)
-model = BertForSequenceClassification.from_pretrained(model_path)
+# tokenizer = BertTokenizer.from_pretrained(model_path)
+# model = BertForSequenceClassification.from_pretrained(model_path)
+tokenizer = None
+model = None
+
+@app.on_event("startup")
+def load_model():
+    global tokenizer, model
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path)
+    model.eval()
 
 model.eval()
 
