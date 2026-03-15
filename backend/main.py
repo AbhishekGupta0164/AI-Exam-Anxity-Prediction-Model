@@ -1,30 +1,100 @@
+# from fastapi import FastAPI
+# from pydantic import BaseModel
+# import torch
+# from transformers import BertTokenizer, BertForSequenceClassification
+
+
+# app = FastAPI()
+
+# # model_path = "../model"
+# import os
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# model_path = os.path.join(BASE_DIR, "model")
+
+# # tokenizer = BertTokenizer.from_pretrained(model_path)
+# # model = BertForSequenceClassification.from_pretrained(model_path)
+# tokenizer = None
+# model = None
+
+# @app.on_event("startup")
+# def load_model():
+#     global tokenizer, model
+#     tokenizer = BertTokenizer.from_pretrained(model_path)
+#     model = BertForSequenceClassification.from_pretrained(model_path)
+#     model.eval()
+
+# model.eval()
+
+# label_map = {
+#     0: "Low Anxiety",
+#     1: "Moderate Anxiety",
+#     2: "High Anxiety"
+# }
+
+# class TextInput(BaseModel):
+#     text: str
+
+# def predict_anxiety(text):
+
+#     inputs = tokenizer(
+#         text,
+#         return_tensors="pt",
+#         truncation=True,
+#         padding=True,
+#         max_length=128
+#     )
+
+#     with torch.no_grad():
+#         outputs = model(**inputs)
+
+#     prediction = torch.argmax(outputs.logits, dim=1).item()
+
+#     return label_map[prediction]
+
+
+# @app.get("/")
+# def home():
+#     return {"message": "Exam Anxiety Detector API running"}
+
+
+# @app.post("/predict")
+# def predict(data: TextInput):
+
+#     result = predict_anxiety(data.text)
+
+#     return {
+#         "input_text": data.text,
+#         "predicted_anxiety": result
+#     }
+
+
+# grok error control
 from fastapi import FastAPI
 from pydantic import BaseModel
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
-
-
-app = FastAPI()
-
-# model_path = "../model"
 import os
 
+app = FastAPI(title="Exam Anxiety Detector API")
+
+# Model path (from backend/main.py → go up to project root)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 model_path = os.path.join(BASE_DIR, "model")
 
-# tokenizer = BertTokenizer.from_pretrained(model_path)
-# model = BertForSequenceClassification.from_pretrained(model_path)
+# Globals (will be loaded in startup)
 tokenizer = None
 model = None
 
 @app.on_event("startup")
 def load_model():
     global tokenizer, model
+    print("🚀 Loading BERT model...")  # ← you will see this in Render logs
+    
     tokenizer = BertTokenizer.from_pretrained(model_path)
     model = BertForSequenceClassification.from_pretrained(model_path)
-    model.eval()
-
-model.eval()
+    model.eval()          # ← only here, after loading
+    print("✅ Model loaded successfully!")
 
 label_map = {
     0: "Low Anxiety",
@@ -35,8 +105,10 @@ label_map = {
 class TextInput(BaseModel):
     text: str
 
-def predict_anxiety(text):
-
+def predict_anxiety(text: str):
+    if tokenizer is None or model is None:
+        raise RuntimeError("Model not loaded yet")
+    
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -44,25 +116,20 @@ def predict_anxiety(text):
         padding=True,
         max_length=128
     )
-
+    
     with torch.no_grad():
         outputs = model(**inputs)
-
+    
     prediction = torch.argmax(outputs.logits, dim=1).item()
-
     return label_map[prediction]
-
 
 @app.get("/")
 def home():
-    return {"message": "Exam Anxiety Detector API running"}
-
+    return {"message": "Exam Anxiety Detector API running ✅"}
 
 @app.post("/predict")
 def predict(data: TextInput):
-
     result = predict_anxiety(data.text)
-
     return {
         "input_text": data.text,
         "predicted_anxiety": result
