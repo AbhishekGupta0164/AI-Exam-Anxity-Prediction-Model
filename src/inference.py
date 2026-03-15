@@ -1,18 +1,25 @@
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 
-model_path = "../model"
+# model_path = "../model"
 
-tokenizer = BertTokenizer.from_pretrained(model_path)
-model = BertForSequenceClassification.from_pretrained(model_path)
+# tokenizer = BertTokenizer.from_pretrained(model_path)
+# model = BertForSequenceClassification.from_pretrained(model_path)
 
-model.eval()
+# model.eval()
 
-label_map = {
-    0: "Low Anxiety",
-    1: "Moderate Anxiety",
-    2: "High Anxiety"
-}
+# label_map = {
+#     0: "Low Anxiety",
+#     1: "Moderate Anxiety",
+#     2: "High Anxiety"
+# }
+def load_model(model_path: str):
+    """Only load when called from startup"""
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path)
+    model.eval()
+    return tokenizer, model
+
 
 def predict_anxiety(text):
 
